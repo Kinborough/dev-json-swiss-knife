@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dev JSON Swiss Knife · JSON 全能瑞士军刀</title>
+<meta name="description" content="All-in-one JSON Formatter, Tree Viewer, JSONPath Finder & Type Generator. JSON 格式化、树状视图、路径复制、TS / Python / YAML 生成器。" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        fontFamily: {
+          mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'Menlo', 'monospace']
+        }
+      }
+    }
+  }
+</script>
+<style>
+  html { scroll-behavior: smooth; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #334155; border-radius: 6px; }
+  .dark ::-webkit-scrollbar-thumb { background: #334155; }
+  ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  .glow { box-shadow: 0 0 0 1px rgba(56,189,248,.25), 0 8px 30px -12px rgba(56,189,248,.45); }
+  .tree-row:hover { background: rgba(56,189,248,.12); }
+  .fade-in { animation: fade .18s ease-out; }
+  @keyframes fade { from { opacity: 0; transform: translateY(3px);} to { opacity: 1; transform: none;} }
+  pre code { font-variant-ligatures: none; }
+</style>
+</head>
+<body class="min-h-screen bg-slate-100 text-slate-800 dark:bg-[#0b1120] dark:text-slate-200 font-mono antialiased transition-colors">
+
+<!-- ===== Header ===== -->
+<header class="sticky top-0 z-30 backdrop-blur border-b border-slate-300/60 dark:border-slate-800 bg-white/70 dark:bg-[#0b1120]/80">
+  <div class="max-w-[1600px] mx-auto px-4 py-3 flex items-center gap-3 flex-wrap">
+    <div class="flex items-center gap-2 min-w-0">
+      <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-sky-400 to-indigo-500 grid place-items-center text-white font-bold shadow-lg shadow-sky-500/30">{ }</div>
+      <div class="min-w-0">
+        <h1 class="text-base sm:text-lg font-bold leading-tight truncate">Dev JSON Swiss Knife</h1>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-tight truncate">JSON 全能瑞士军刀 · Format / Tree / JSONPath / Codegen</p>
+      </div>
+    </div>
+    <div class="ml-auto flex items-center gap-2 flex-wrap">
+      <span id="statusPill" class="text-xs px-2.5 py-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">● 等待输入</span>
+      <button id="themeBtn" class="text-xs px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800 transition">🌗 主题</button>
+      <a href="https://github.com/Kinborough/dev-json-swiss-knife" target="_blank" rel="noopener"
+         class="text-xs px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800 transition">★ GitHub</a>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-[1600px] mx-auto px-4 py-4">
+  <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+
+    <!-- ===== Left: Input ===== -->
+    <section class="flex flex-col rounded-2xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-[#0f172a] overflow-hidden">
+      <div class="flex items-center gap-2 px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#111c33] flex-wrap">
+        <span class="text-sm font-semibold">① 输入区 / Input</span>
+        <span class="text-[11px] text-slate-500 dark:text-slate-400">粘贴、拖入或上传 JSON</span>
+        <div class="ml-auto flex items-center gap-1.5 flex-wrap">
+          <button id="sampleBtn" class="text-xs px-2.5 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-white transition">🎁 示例数据</button>
+          <button id="fileBtn" class="text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800 transition">📂 打开文件</button>
+          <button id="clearBtn" class="text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800 transition">🧹 清空</button>
+        </div>
+      </div>
+
+      <div class="p-3">
+        <textarea id="input" spellcheck="false"
+          class="w-full h-[290px] sm:h-[360px] resize-y rounded-xl bg-slate-50 dark:bg-[#0a1324] border border-slate-300 dark:border-slate-700 p-3 text-[13px] leading-relaxed outline-none focus:ring-2 focus:ring-sky-500/60 focus:border-sky-500/60 transition"
+          placeholder='在此粘贴 JSON，例如：{"name":"Kinborough","tools":["it-tools","CyberChef"]}'></textarea>
+        <input id="fileInput" type="file" accept=".json,.txt,application/json" class="hidden" />
+
+        <!-- Error box -->
+        <div id="errBox" class="hidden mt-3 rounded-xl border border-rose-500/50 bg-rose-500/10 p-3 text-[12.5px]">
+          <div class="flex items-start gap-2">
+            <span class="text-rose-500 font-bold">✕</span>
+            <div class="min-w-0 flex-1">
+              <div id="errTitle" class="font-semibold text-rose-600 dark:text-rose-400"></div>
+              <div id="errHint" class="mt-1 text-slate-700 dark:text-slate-300"></div>
+              <pre id="errSnippet" class="mt-2 overflow-x-auto rounded-lg bg-black/40 dark:bg-black/50 p-2 text-[12px] text-rose-300"></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="mt-3 flex items-center gap-2 flex-wrap">
+          <button id="prettyBtn" class="text-xs px-3 py-2 rounded-lg bg-sky-500 hover:bg-sky-400 text-white font-semibold transition">✨ 美化</button>
+          <button id="minifyBtn" class="text-xs px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-semibold transition">🗜 压缩</button>
+          <button id="sortBtn" class="text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800 transition">🔤 键排序</button>
+          <button id="copyRawBtn" class="text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800 transition">📋 复制原文</button>
+          <div class="ml-auto flex items-center gap-1.5">
+            <label class="text-[11px] text-slate-500 dark:text-slate-400">缩进</label>
+            <select id="indentSel" class="text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0a1324] px-2 py-1.5 outline-none">
+              <option value="2">2 空格</option>
+              <option value="4">4 空格</option>
+              <option value="tab">Tab</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Right: Tabs ===== -->
+    <section class="flex flex-col rounded-2xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-[#0f172a] overflow-hidden">
+      <div class="px-4 pt-2.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#111c33]">
+        <div class="flex items-center gap-1 flex-wrap" id="tabBar">
+          <button data-tab="tree" class="tab-btn text-xs px-3 py-2 rounded-t-lg border-b-2 border-sky-500 font-semibold text-sky-600 dark:text-sky-400">🌳 树状视图</button>
+          <button data-tab="types" class="tab-btn text-xs px-3 py-2 rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">🧬 类型生成</button>
+          <button data-tab="yaml" class="tab-btn text-xs px-3 py-2 rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">📄 YAML</button>
+          <button data-tab="paths" class="tab-btn text-xs px-3 py-2 rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">🧭 路径列表</button>
+        </div>
+      </div>
+
+      <!-- Tab: Tree -->
+      <div id="tab-tree" class="tab-panel p-3">
+        <div class="flex items-center gap-2 mb-2 flex-wrap">
+          <button id="expandAllBtn" class="text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800 transition">⊞ 全部展开</button>
+          <button id="collapseAllBtn" class="text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800 transition">⊟ 全部折叠</button>
+          <input id="treeFilter" placeholder="过滤键名 / 值…" class="text-xs flex-1 min-w-[140px] rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0a1324] px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-sky-500/50" />
+          <span class="text-[11px] text-slate-500 dark:text-slate-400">点击节点复制 JSONPath</span>
+        </div>
+        <div id="tree" class="h-[330px] sm:h-[400px] overflow-auto rounded-xl bg-slate-50 dark:bg-[#0a1324] border border-slate-300 dark:border-slate-700 p-2 text-[12.5px] leading-6"></div>
+      </div>
+
+      <!-- Tab: Types -->
+      <div id="tab-types" class="tab-panel hidden p-3">
+        <div class="flex items-center gap-2 mb-2 flex-wrap">
+          <button data-gen="ts" class="gen-btn text-xs px-3 py-1.5 rounded-lg bg-sky-500 text-white font-semibold">TypeScript</button>
+          <button data-gen="py" class="gen-btn text-xs px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800">Python</button>
+          <button data-gen="go" class="gen-btn text-xs px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800">Go</button>
+          <button id="copyTypeBtn" class="ml-auto text-xs px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800 transition">📋 复制</button>
+          <button id="dlTypeBtn" class="text-xs px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800 transition">⬇ 下载</button>
+        </div>
+        <pre id="typeOut" class="h-[330px] sm:h-[400px] overflow-auto rounded-xl bg-slate-50 dark:bg-[#0a1324] border border-slate-300 dark:border-slate-700 p-3 text-[12.5px] leading-relaxed whitespace-pre"></pre>
+      </div>
+
+      <!-- Tab: YAML -->
+      <div id="tab-yaml" class="tab-panel hidden p-3">
+        <div class="flex items-center gap-2 mb-2 flex-wrap">
+          <span class="text-[11px] text-slate-500 dark:text-slate-400">由 JSON 实时转换</span>
+          <button id="copyYamlBtn" class="ml-auto text-xs px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800 transition">📋 复制</button>
+          <button id="dlYamlBtn" class="text-xs px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800 transition">⬇ 下载</button>
+        </div>
+        <pre id="yamlOut" class="h-[330px] sm:h-[400px] overflow-auto rounded-xl bg-slate-50 dark:bg-[#0a1324] border border-slate-300 dark:border-slate-700 p-3 text-[12.5px] leading-relaxed whitespace-pre"></pre>
+      </div>
+
+      <!-- Tab: Paths -->
+      <div id="tab-paths" class="tab-panel hidden p-3">
+        <div class="flex items-center gap-2 mb-2 flex-wrap">
+          <span class="text-[11px] text-slate-500 dark:text-slate-400">全部 JSONPath（点击复制）</span>
+          <input id="pathFilter" placeholder="过滤路径…" class="text-xs flex-1 min-w-[140px] rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0a1324] px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-sky-500/50" />
+          <button id="copyPathsBtn" class="text-xs px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800 transition">📋 复制全部</button>
+        </div>
+        <div id="pathsOut" class="h-[330px] sm:h-[400px] overflow-auto rounded-xl bg-slate-50 dark:bg-[#0a1324] border border-slate-300 dark:border-slate-700 p-2 text-[12.5px]"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ===== Stats bar ===== -->
+  <section class="mt-4 rounded-2xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-[#0f172a] p-4">
+    <div class="flex items-center gap-2 mb-3">
+      <span class="text-sm font-semibold">② 实时统计 / Live Stats</span>
+      <span class="text-[11px] text-slate-500 dark:text-slate-400">输入即算，无需点击</span>
+    </div>
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div class="rounded-xl bg-slate-50 dark:bg-[#0a1324] border border-slate-300 dark:border-slate-700 p-3">
+        <div class="text-[11px] text-slate-500 dark:text-slate-400">字符数</div>
+        <div id="stChars" class="text-lg font-bold text-sky-500">0</div>
+      </div>
+      <div class="rounded-xl bg-slate-50 dark:bg-[#0a1324] border border-slate-300 dark:border-slate-700 p-3">
+        <div class="text-[11px] text-slate-500 dark:text-slate-400">体积</div>
+        <div id="stBytes" class="text-lg font-bold text-sky-500">0 B</div>
+      </div>
+      <div class="rounded-xl bg-slate-50 dark:bg-[#0a1324] border border-slate-300 dark:border-slate-700 p-3">
+        <div class="text-[11px] text-slate-500 dark:text-slate-400">最大嵌套深度</div>
+        <div id="stDepth" class="text-lg font-bold text-indigo-400">0</div>
+      </div>
+      <div class="rounded-xl bg-slate-50 dark:bg-[#0a1324] border border-slate-300 dark:border-slate-700 p-3">
+        <div class="text-[11px] text-slate-500 dark:text-slate-400">键数量</div>
+        <div id="stKeys" class="text-lg font-bold text-emerald-500">0</div>
+      </div>
+      <div class="rounded-xl bg-slate-50 dark:bg-[#0a1324] border border-slate-300 dark:border-slate-700 p-3">
+        <div class="text-[11px] text-slate-500 dark:text-slate-400">元素总数</div>
+        <div id="stNodes" class="text-lg font-bold text-amber-500">0</div>
+      </div>
+      <div class="rounded-xl bg-slate-50 dark:bg-[#0a1324] border border-slate-300 dark:border-slate-700 p-3">
+        <div class="text-[11px] text-slate-500 dark:text-slate-400">根节点类型</div>
+        <div id="stRoot" class="text-lg font-bold text-fuchsia-500">—</div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="mt-4 mb-8 text-center text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+    100% 本地运行，数据永不上传 · 设计参考
+    <a class="text-sky-500 hover:underline" href="https://github.com/CorentinTh/it-tools" target="_blank" rel="noopener">CorentinTh/it-tools</a> ·
+    <a class="text-sky-500 hover:underline" href="https://github.com/AykutSarac/jsoncrack.com" target="_blank" rel="noopener">JSON Crack</a> ·
+    <a class="text-sky-500 hover:underline" href="https://github.com/gchq/CyberChef" target="_blank" rel="noopener">gchq/CyberChef</a>
+  </footer>
+</main>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 hidden">
+  <div class="rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-2.5 text-sm shadow-2xl fade-in">✅ 已复制到剪贴板</div>
+</div>
+
+<script>
+/* =========================================================
+   Dev JSON Swiss Knife — vanilla JS, no build step
+   ========================================================= */
+(function () {
+  'use strict';
+
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => Array.prototype.slice.call(document.querySelectorAll(s));
+
+  const input = $('#input');
+  const errBox = $('#errBox'), errTitle = $('#errTitle'), errHint = $('#errHint'), errSnippet = $('#errSnippet');
+  const statusPill = $('#statusPill');
+  const treeEl = $('#tree'), typeOut = $('#typeOut'), yamlOut = $('#yamlOut'), pathsOut = $('#pathsOut');
+
+  let current = undefined;      // parsed value
+  let currentValid = false;
+  let genMode = 'ts';           // ts | py | go
+  let pathIndex = [];           // [{path, key, type, preview}]
+
+  /* ---------- sample data ---------- */
+  const SAMPLE = {
+    project: "daily-tools-factory",
+    owner: "Kinborough",
+    version: "1.0.0",
+    private: false,
+    stars: 0,
+    createdAt: "2026-10-18T15:04:05+08:00",
+    repository: {
+      url: "https://github.com/Kinborough/dev-json-swiss-knife",
+      branch: "main",
+      pages: "https://kinborough.github.io/dev-json-swiss-knife/",
+      topics: ["json", "formatter", "developer-tools", "typescript"],
+      license: { name: "MIT", spdx: "MIT", url: "https://opensource.org/licenses/MIT" }
+    },
+    benchmarks: [
+      { id: "dev-json-swiss-knife", title: "JSON 全能瑞士军刀", status: "completed", weight: 0.92, tags: ["json", "tree"] },
+      { id: "cron-visual-builder", title: "Cron 可视化构建器", status: "pending", weight: 0.74, tags: ["cron", "time"] },
+      { id: "encoding-cyber-box", title: "编码解码百宝箱", status: "pending", weight: 0.88, tags: ["base64", "hash"] }
+    ],
+    stats: {
+      tools: 10,
+      completed: 1,
+      pending: 9,
+      nested: { level2: { level3: { level4: { level5: "deep enough 👇", ok: true } } } },
+      emptyObject: {},
+      emptyArray: [],
+      nullable: null,
+      ratio: 0.375
+    },
+    meta: null
+  };
+
+  /* ---------- utils ---------- */
+  function toast(msg) {
+    const t = $('#toast');
+    t.firstElementChild.textContent = msg;
+    t.classList.remove('hidden');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.add('hidden'), 1600);
+  }
+
+  function copyText(text, label) {
+    const done = () => toast('✅ 已复制' + (label ? '：' + label : ''));
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done).catch(fallback);
+    } else { fallback(); }
+    function fallback() {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) { toast('❌ 复制失败，请手动选择'); }
+      document.body.removeChild(ta);
+    }
+  }
+
+  function download(name, text) {
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  function fmtBytes(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(2) + ' KB';
+    return (n / 1024 / 1024).toFixed(2) + ' MB';
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  /* ---------- JSON parse + error locating ---------- */
+  function posToLineCol(text, pos) {
+    const upto = text.slice(0, Math.max(0, pos));
+    const lines = upto.split('\n');
+    return { line: lines.length, col: lines[lines.length - 1].length + 1 };
+  }
+
+  // Modern V8 message: `Unexpected token ']', ..."b": [1,2,]\n}" is not valid JSON`
+  // The tail after `..." ` is a snippet of the input; use it to recover the offset.
+  function posFromV8Snippet(text, msg) {
+    if (!/is not valid JSON$/i.test(msg)) return -1;
+    const start = msg.lastIndexOf('..."');
+    if (start < 0) return -1;
+    const end = msg.length - ' is not valid JSON'.length - 1;
+    if (end <= start + 4) return -1;
+    let snip = msg.slice(start + 4, end);
+    snip = snip.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\t/g, '\t')
+               .replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+    const idx = text.lastIndexOf(snip);
+    if (idx < 0) return -1;
+    return idx + snip.length;
+  }
+
+  function hintFor(msg, raw) {
+    const m = (msg || '').toLowerCase();
+    const text = raw || '';
+
+    // 单引号检测放在最前：V8 会把单引号报成 "Expected property name or '}'"
+    if (text.indexOf("'") >= 0 && (m.indexOf('expected property name') >= 0 ||
+        m.indexOf('expected double-quoted') >= 0 || m.indexOf("unexpected token '") >= 0)) {
+      const p = text.indexOf("'");
+      const lc = posToLineCol(text, p);
+      return { hint: '检测到单引号 \'：JSON 只允许用双引号 " 包裹键名与字符串，请把这里的单引号改成双引号。', line: lc.line, col: lc.col };
+    }
+    if (m.indexOf('unexpected end of json input') >= 0) {
+      const lc = posToLineCol(text, text.length);
+      return { hint: 'JSON 不完整：可能少了结尾的 } 或 ]，或引号没有闭合。', line: lc.line, col: lc.col };
+    }
+    if (m.indexOf('unexpected non-whitespace') >= 0)
+      return { hint: 'JSON 结束后还有多余内容：请删除尾部多余字符，或确认没有拼接两份 JSON。' };
+    if (m.indexOf('expected property name or') >= 0)
+      return { hint: '键名缺少双引号，或出现了尾随逗号（trailing comma）：把 { a: 1 } 改成 { "a": 1 }。' };
+    if (m.indexOf("expected ',' or '}'") >= 0 || m.indexOf("expected ',' or ']'") >= 0)
+      return { hint: '缺少逗号 , 或引号未闭合：检查前一个属性末尾是否漏了逗号，或字符串是否忘了收尾的 "。' };
+    if (m.indexOf('unexpected token }') >= 0 || m.indexOf('unexpected token ]') >= 0)
+      return { hint: '多余的 } 或 ]：通常是前一个属性后面多了一个逗号（尾随逗号），删除它即可。' };
+    if (m.indexOf('is not valid json') >= 0 || m.indexOf('unexpected token') >= 0)
+      return { hint: '该位置出现了 JSON 不允许的字符：如尾随逗号、单引号、注释、NaN、undefined 或未转义的换行。' };
+    if (m.indexOf('bad escaped character') >= 0)
+      return { hint: '非法转义字符：字符串内请使用 \\\\ \\" \\n \\t \\uXXXX。' };
+    if (m.indexOf('unterminated string') >= 0)
+      return { hint: '字符串没有闭合：这一行缺少收尾的双引号 "，或字符串内含有未转义的换行。' };
+    return { hint: '请检查该位置的符号是否成对、是否缺少逗号或引号。' };
+  }
+
+  // Deterministic scanner: walks the text and reports the exact offset of the
+  // first structural problem. Browser error messages differ between engines
+  // (V8 / SpiderMonkey / JavaScriptCore), so we do our own locating and only
+  // use the engine message to pick the human-readable hint.
+  function scanError(text) {
+    let i = 0;
+    const n = text.length;
+    const ws = ' \t\r\n';
+    const stack = [];
+
+    function skipWs(k) {
+      while (k < n && ws.indexOf(text[k]) >= 0) k++;
+      return k;
+    }
+
+    function scanString(k) {
+      k++; // opening quote
+      while (k < n) {
+        const c = text[k];
+        if (c === '\\') {
+          k += 2;
+          if (text[k - 1] === 'u') {
+            let hex = '';
+            for (let j = 0; j < 4 && k < n; j++, k++) hex += text[k];
+            if (!/^[0-9a-fA-F]{4}$/.test(hex)) return { bad: k, why: 'escape' };
+          } else if ('"\\/bfnrt'.indexOf(text[k - 1]) < 0) {
+            return { bad: k, why: 'escape' };
+          }
+          continue;
+        }
+        if (c === '"') return { ok: k + 1 };
+        if (c === '\n' || c === '\r') return { bad: k, why: 'newline' };
+        k++;
+      }
+      return { bad: k, why: 'unterminated' };
+    }
+
+    function scanLiteral(k, word, why) {
+      const rest = text.slice(k, k + word.length);
+      if (rest !== word) return { bad: k, why: why };
+      return { ok: k + word.length };
+    }
+
+    function scanValue(k) {
+      k = skipWs(k);
+      if (k >= n) return { bad: n, why: 'eof' };
+      const c = text[k];
+      if (c === '"') return scanString(k);
+      if (c === '{' || c === '[') return scanContainer(k);
+      if (c === "'") return { bad: k, why: 'single-quote' };
+      if (c === '}' || c === ']') return { bad: k, why: 'unexpected-closer' };
+      if (c === ',') return { bad: k, why: 'unexpected-comma' };
+      if (c === ':') return { bad: k, why: 'unexpected-colon' };
+      if ('-+0123456789'.indexOf(c) >= 0) {
+        const numRe = /^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?/;
+        const mm = numRe.exec(text.slice(k));
+        if (!mm) return { bad: k, why: 'number' };
+        return { ok: k + mm[0].length };
+      }
+      if (c === 't') return scanLiteral(k, 'true', 'literal');
+      if (c === 'f') return scanLiteral(k, 'false', 'literal');
+      if (c === 'n') {
+        if (text.slice(k, k + 4) === 'null') return { ok: k + 4 };
+        return { bad: k, why: 'literal' };
+      }
+      return { bad: k, why: 'char' };
+    }
+
+    // returns {ok:index} or {bad:index, why}
+    function scanContainer(k) {
+      const open = text[k];
+      const close = open === '{' ? '}' : ']';
+      stack.push(open);
+      k++;
+      let expectValue = true;
+      let expectKey = open === '{';
+
+      k = skipWs(k);
+      if (k < n && text[k] === close) { stack.pop(); return { ok: k + 1 }; }
+      if (k >= n) return { bad: n, why: 'unterminated-container' };
+
+      while (k < n) {
+        if (expectKey) {
+          k = skipWs(k);
+          if (k >= n) return { bad: n, why: 'unterminated-container' };
+          if (text[k] === close) { stack.pop(); return { ok: k + 1 }; }
+          if (text[k] === "'") return { bad: k, why: 'single-quote-key' };
+          if (text[k] !== '"') return { bad: k, why: 'key' };
+          const s = scanString(k);
+          if (s.bad !== undefined) return s;
+          k = s.ok;
+          k = skipWs(k);
+          if (text[k] !== ':') return { bad: k, why: 'colon' };
+          k++;
+          expectKey = false;
+          expectValue = true;
+          continue;
+        }
+        if (expectValue) {
+          const v = scanValue(k);
+          if (v.bad !== undefined) return v;
+          k = v.ok;
+          expectValue = false;
+          k = skipWs(k);
+          if (k >= n) return { bad: n, why: 'unterminated-container' };
+          if (text[k] === close) { stack.pop(); return { ok: k + 1 }; }
+          if (text[k] === ',') {
+            k++;
+            k = skipWs(k);
+            if (k >= n) return { bad: n, why: 'unterminated-container' };
+            if (text[k] === close) return { bad: k, why: 'trailing-comma' };
+            expectKey = open === '{';
+            expectValue = open !== '{';
+            continue;
+          }
+          return { bad: k, why: 'separator' };
+        }
+        // after a comma in an array, expect a value
+        const v2 = scanValue(k);
+        if (v2.bad !== undefined) return v2;
+        k = v2.ok;
+        k = skipWs(k);
+        if (k >= n) return { bad: n, why: 'unterminated-container' };
+        if (text[k] === close) { stack.pop(); return { ok: k + 1 }; }
+        if (text[k] === ',') {
+          k++;
+          k = skipWs(k);
+          if (k >= n) return { bad: n, why: 'unterminated-container' };
+          if (text[k] === close) return { bad: k, why: 'trailing-comma' };
+          continue;
+        }
+        return { bad: k, why: 'separator' };
+      }
+      return { bad: n, why: 'unterminated-container' };
+    }
+
+    i = skipWs(i);
+    if (i >= n) return { offset: 0, why: 'empty' };
+    const top = scanValue(i);
+    if (top.bad !== undefined) return { offset: top.bad, why: top.why };
+    i = top.ok;
+    i = skipWs(i);
+    if (i < n) return { offset: i, why: 'trailing-content' };
+    if (stack.length) return { offset: n, why: 'unterminated-container' };
+    return null;
+  }
+
+  const WHY_HINT = {
+    'empty': '输入为空：请粘贴或载入 JSON 内容。',
+    'eof': 'JSON 不完整：这里之后就结束了，可能少了结尾的 } 或 ]。',
+    'single-quote': '检测到单引号 \'：JSON 只允许用双引号 " 包裹键名与字符串，请把这里改成双引号。',
+    'single-quote-key': '键名用了单引号 \'：请改成双引号 "，例如 { "name": 1 }。',
+    'unexpected-closer': '这里多了一个 } 或 ]：通常是前一个元素后面多了一个逗号（尾随逗号）。',
+    'unexpected-comma': '这里多了一个逗号 ,：删除它，或在它后面补上完整的键值对 / 元素。',
+    'unexpected-colon': '这里多了一个冒号 :：JSON 的冒号只能出现在键名与值之间。',
+    'key': '键名缺少双引号：把 { name: 1 } 改成 { "name": 1 }。',
+    'colon': '键名后面缺少冒号 :：正确写法是 "key": value。',
+    'trailing-comma': '出现尾随逗号（trailing comma）：删除这个多余的逗号即可。',
+    'separator': '两个值之间缺少逗号 , 或多了非法字符：检查上一个元素末尾是否漏了逗号。',
+    'unterminated': '字符串没有闭合：这里之后缺少收尾的双引号 "。',
+    'newline': '字符串内含有未转义的换行：请使用 \\n 转义，或把字符串写成一行。',
+    'escape': '非法转义字符：字符串内只允许 \\" \\\\ \\/ \\b \\f \\n \\r \\t 和 \\uXXXX。',
+    'number': '数字格式不合法：不能有多余的前导零、末尾小数点或 + 号，也不能写成 NaN / Infinity。',
+    'literal': '这里只能写 true / false / null（小写），不能写 undefined、None 或单引号字符串。',
+    'char': '出现了 JSON 不允许的字符：如注释、单引号、NaN、undefined 或多余符号。',
+    'unterminated-container': '括号没有闭合：检查是否少了对应的 } 或 ]。',
+    'trailing-content': 'JSON 已经结束，后面还有多余内容：删除它，或确认没有粘贴两份 JSON。'
+  };
+
+  function parseJSON(text) {
+    try { return { ok: true, value: JSON.parse(text) }; }
+    catch (e) {
+      const msg = e.message || String(e);
+      let line = null, col = null, pos = -1;
+
+      // 1) our own scanner is authoritative for position
+      const hit = scanError(text);
+      if (hit) pos = hit.offset;
+
+      // 2) fall back to engine-provided coordinates when the scanner is silent
+      if (pos < 0) {
+        const lm = /line (\d+) column (\d+)/i.exec(msg);
+        const pm = /position (\d+)/i.exec(msg);
+        if (lm) { line = parseInt(lm[1], 10); col = parseInt(lm[2], 10); }
+        else if (pm) pos = parseInt(pm[1], 10);
+        else pos = posFromV8Snippet(text, msg);
+      }
+
+      if (pos >= 0 && line === null) {
+        const lc = posToLineCol(text, pos);
+        line = lc.line; col = lc.col;
+      }
+
+      // 3) hint: prefer our diagnosis, fall back to message matching
+      let hint = null;
+      if (hit && WHY_HINT[hit.why]) hint = WHY_HINT[hit.why];
+      if (hint && hit.why === 'char' && text.indexOf("'") >= 0) {
+        const p = text.indexOf("'");
+        const lc = posToLineCol(text, p);
+        hint = WHY_HINT['single-quote']; line = lc.line; col = lc.col;
+      }
+      if (!hint) hint = hintFor(msg, text).hint;
+      if (line === null) {
+        const h = hintFor(msg, text);
+        if (h.line) { line = h.line; col = h.col; }
+      }
+      if (line === null) { const lc = posToLineCol(text, 1); line = lc.line; col = lc.col; }
+
+      return { ok: false, message: msg, line: line, col: col, pos: pos, hint: hint, why: hit ? hit.why : null };
+    }
+  }
+
+  function showError(raw, res) {
+    errBox.classList.remove('hidden');
+    errTitle.textContent = '语法错误 @ 第 ' + (res.line || '?') + ' 行，第 ' + (res.col || '?') + ' 列';
+    errHint.textContent = '💡 ' + res.hint;
+    if (res.line) {
+      const lines = raw.split('\n');
+      const ln = res.line;
+      const out = [];
+      for (let i = Math.max(1, ln - 2); i <= Math.min(lines.length, ln + 2); i++) {
+        const mark = i === ln ? '→' : ' ';
+        let textLine = lines[i - 1];
+        if (textLine.length > 240) textLine = textLine.slice(0, 240) + ' …';
+        out.push(mark + ' ' + String(i).padStart(4, ' ') + ' | ' + textLine);
+        if (i === ln) {
+          const pad = ' '.repeat(6 + (res.col || 1));
+          out.push('  ' + pad + '^'.repeat(1) + '  ← 出错位置');
+        }
+      }
+      errSnippet.textContent = out.join('\n');
+    } else {
+      errSnippet.textContent = res.message;
+    }
+  }
+
+  /* ---------- stats ---------- */
+  function computeStats(value, raw) {
+    let depth = 0, keys = 0, nodes = 0;
+
+    (function walk(v, d) {
+      nodes++;
+      if (d > depth) depth = d;
+      if (v === null || typeof v !== 'object') return;
+      if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) walk(v[i], d + 1); return; }
+      const ks = Object.keys(v);
+      keys += ks.length;
+      for (let i = 0; i < ks.length; i++) walk(v[ks[i]], d + 1);
+    })(value, 1);
+
+    const bytes = new TextEncoder().encode(raw).length;
+    $('#stChars').textContent = raw.length.toLocaleString('en-US');
+    $('#stBytes').textContent = fmtBytes(bytes);
+    $('#stDepth').textContent = depth;
+    $('#stKeys').textContent = keys.toLocaleString('en-US');
+    $('#stNodes').textContent = nodes.toLocaleString('en-US');
+    $('#stRoot').textContent =
+      Array.isArray(value) ? 'Array' :
+      value === null ? 'null' :
+      typeof value === 'object' ? 'Object' :
+      typeof value;
+  }
+
+  /* ---------- JSONPath ---------- */
+  function keyToken(k) {
+    return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(k) ? '.' + k : "['" + String(k).replace(/'/g, "\\'") + "']";
+  }
+  function joinPath(base, k, isArray) {
+    return isArray ? base + '[' + k + ']' : base + keyToken(k);
+  }
+
+  /* ---------- tree view ---------- */
+  function nodePreview(v) {
+    if (v === null) return 'null';
+    if (typeof v === 'string') {
+      const s = v.length > 60 ? v.slice(0, 60) + '…' : v;
+      return '"' + s + '"';
+    }
+    if (Array.isArray(v)) return 'Array[' + v.length + ']';
+    if (typeof v === 'object') return '{' + Object.keys(v).length + '}';
+    return String(v);
+  }
+
+  function typeColor(v) {
+    if (v === null) return 'text-slate-400';
+    if (typeof v === 'string') return 'text-emerald-500 dark:text-emerald-400';
+    if (typeof v === 'number') return 'text-amber-500 dark:text-amber-400';
+    if (typeof v === 'boolean') return 'text-fuchsia-500 dark:text-fuchsia-400';
+    return 'text-sky-500 dark:text-sky-400';
+  }
+
+  function buildTree(value) {
+    treeEl.innerHTML = '';
+    if (value === undefined) {
+      treeEl.innerHTML = '<div class="text-slate-500 p-3">左侧输入合法 JSON 后，这里会出现可折叠树状视图。</div>';
+      return;
+    }
+    treeEl.appendChild(renderNode('$', value, '$', 0, true));
+  }
+
+  function renderNode(label, value, path, depth, isRoot) {
+    const wrap = document.createElement('div');
+    const row = document.createElement('div');
+    row.className = 'tree-row flex items-start gap-1 rounded px-1 cursor-pointer';
+    row.style.paddingLeft = (depth * 14) + 'px';
+
+    const isObj = value !== null && typeof value === 'object';
+    const container = (isObj && ((Array.isArray(value) && value.length) || (!Array.isArray(value) && Object.keys(value).length))) ? true : false;
+
+    const toggle = document.createElement('span');
+    toggle.className = 'w-4 shrink-0 text-sky-500 select-none';
+    toggle.textContent = container ? '▾' : '·';
+    row.appendChild(toggle);
+
+    const keyEl = document.createElement('span');
+    keyEl.className = 'shrink-0 ' + (isRoot ? 'text-indigo-500 dark:text-indigo-400 font-bold' : 'text-slate-700 dark:text-slate-300');
+    keyEl.textContent = label;
+    row.appendChild(keyEl);
+
+    const valEl = document.createElement('span');
+    valEl.className = 'truncate ' + typeColor(value);
+    valEl.textContent = isObj ? nodePreview(value) : nodePreview(value);
+    row.appendChild(valEl);
+
+    const copyTag = document.createElement('span');
+    copyTag.className = 'ml-auto shrink-0 text-[10px] text-slate-400 opacity-0 group-hover:opacity-100';
+    row.appendChild(copyTag);
+
+    wrap.appendChild(row);
+
+    let childBox = null;
+    if (container) {
+      childBox = document.createElement('div');
+      childBox.className = 'children';
+      const entries = Array.isArray(value)
+        ? value.map((v, i) => [String(i), v, true])
+        : Object.keys(value).map((k) => [k, value[k], false]);
+      for (let i = 0; i < entries.length; i++) {
+        const [k, v, isArr] = entries[i];
+        const childPath = joinPath(path, isArr ? Number(k) : k, isArr);
+        childBox.appendChild(renderNode(isArr ? '[' + k + ']' : k, v, childPath, depth + 1, false));
+      }
+      wrap.appendChild(childBox);
+    }
+
+    row.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (container && childBox) {
+        const hidden = childBox.classList.toggle('hidden');
+        toggle.textContent = hidden ? '▸' : '▾';
+      }
+      copyText(path, path);
+      flashRow(row);
+    });
+
+    row.dataset.path = path;
+    row.dataset.text = (label + ' ' + nodePreview(value)).toLowerCase();
+    return wrap;
+  }
+
+  function flashRow(row) {
+    row.classList.add('bg-sky-500/20');
+    setTimeout(() => row.classList.remove('bg-sky-500/20'), 420);
+  }
+
+  /* ---------- TypeScript generator ---------- */
+  function sanitize(n) {
+    let s = String(n).replace(/[^A-Za-z0-9_]/g, '_');
+    if (/^[0-9]/.test(s)) s = '_' + s;
+    return s;
+  }
+  function pascal(n) {
+    const parts = sanitize(n).split('_').filter(Boolean);
+    const out = parts.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+    return out || 'Item';
+  }
+  function tsPrim(v) {
+    if (v === null) return 'null';
+    if (typeof v === 'string') return 'string';
+    if (typeof v === 'boolean') return 'boolean';
+    if (typeof v === 'number') return Number.isInteger(v) ? 'number' : 'number';
+    return 'unknown';
+  }
+
+  function genTS(value, rootName) {
+    const blocks = [];
+    const used = Object.create(null);
+    function uniq(name) {
+      let n = name, i = 2;
+      while (used[n]) { n = name + i; i++; }
+      used[n] = 1;
+      return n;
+    }
+    function walk(v, name) {
+      if (Array.isArray(v)) {
+        if (!v.length) return 'unknown[]';
+        const objs = v.filter(x => x !== null && typeof x === 'object' && !Array.isArray(x));
+        if (objs.length) {
+          const merged = Object.assign({}, ...objs);
+          return walk(merged, name) + '[]';
+        }
+        if (v.every(x => Array.isArray(x))) return walk(v[0], name) + '[][]';
+        const set = new Set(v.map(x => x === null ? 'null' : typeof x));
+        if (set.size === 1) return tsPrim(v[0]) + '[]';
+        // 数组里混了 null / object：统一降级成 unknown[]，避免生成 TS 不允许的 `null[]`
+        return 'unknown[]';
+      }
+      if (v !== null && typeof v === 'object') {
+        const ks = Object.keys(v);
+        if (!ks.length) return 'Record<string, unknown>';
+        const lines = [];
+        for (let i = 0; i < ks.length; i++) {
+          const k = ks[i];
+          const t = walk(v[k], k);
+          const safe = /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(k) ? k : JSON.stringify(k);
+          lines.push('  ' + safe + ': ' + t + ';');
+        }
+        const ifName = uniq(pascal(name));
+        blocks.push('export interface ' + ifName + ' {\n' + lines.join('\n') + '\n}');
+        return ifName;
+      }
+      return tsPrim(v);
+    }
+    function tsPrimOfType(t) {
+      return t === 'string' ? 'string' : t === 'number' ? 'number' : t === 'boolean' ? 'boolean' : 'null';
+    }
+    const rootType = walk(value, rootName || 'Root');
+    void tsPrimOfType;
+    return blocks.join('\n\n') + '\n\n// 根类型： ' + rootType + '\n';
+  }
+
+  /* ---------- Python dataclass generator ---------- */
+  function pyPrim(v) {
+    if (v === null) return 'None';
+    if (typeof v === 'string') return 'str';
+    if (typeof v === 'boolean') return 'bool';
+    if (typeof v === 'number') return Number.isInteger(v) ? 'int' : 'float';
+    return 'Any';
+  }
+
+  function genPy(value, rootName) {
+    const blocks = [];
+    const used = Object.create(null);
+    function uniq(name) {
+      let n = name, i = 2;
+      while (used[n]) { n = name + i; i++; }
+      used[n] = 1; return n;
+    }
+    function snake(n) {
+      let s = sanitize(n);
+      s = s.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+      return s || 'item';
+    }
+    function walk(v, name) {
+      if (Array.isArray(v)) {
+        if (!v.length) return 'List[Any]';
+        const objs = v.filter(x => x !== null && typeof x === 'object' && !Array.isArray(x));
+        if (objs.length) return 'List[' + walk(Object.assign({}, ...objs), name) + ']';
+        if (v.every(x => Array.isArray(x))) return 'List[' + walk(v[0], name) + ']';
+        const set = new Set(v.map(x => x === null ? 'None' : typeof x));
+        if (set.size === 1) return 'List[' + (v[0] === null ? 'None' : pyPrim(v[0])) + ']';
+        return 'List[Any]';
+      }
+      if (v !== null && typeof v === 'object') {
+        const ks = Object.keys(v);
+        if (!ks.length) return 'Dict[str, Any]';
+        const lines = [];
+        for (let i = 0; i < ks.length; i++) {
+          const k = ks[i];
+          const t = walk(v[k], k);
+          lines.push('    ' + snake(k) + ': ' + t);
+        }
+        const cls = uniq(pascal(name));
+        blocks.push('@dataclass\nclass ' + cls + ':\n' + lines.join('\n'));
+        return cls;
+      }
+      return pyPrim(v);
+    }
+    const rootType = walk(value, rootName || 'Root');
+    return 'from dataclasses import dataclass\nfrom typing import Any, Dict, List, Optional\n\n\n' +
+      blocks.join('\n\n\n') + '\n\n\n# 根类型： ' + rootType + '\n';
+  }
+
+  /* ---------- Go struct generator ---------- */
+  function goPrim(v) {
+    if (v === null) return 'interface{}';
+    if (typeof v === 'string') return 'string';
+    if (typeof v === 'boolean') return 'bool';
+    if (typeof v === 'number') return Number.isInteger(v) ? 'int' : 'float64';
+    return 'interface{}';
+  }
+  function goField(k) {
+    const parts = sanitize(k).split('_').filter(Boolean);
+    return parts.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('') || 'Field';
+  }
+
+  function genGo(value, rootName) {
+    const blocks = [];
+    const used = Object.create(null);
+    function uniq(name) {
+      let n = name, i = 2;
+      while (used[n]) { n = name + i; i++; }
+      used[n] = 1; return n;
+    }
+    function walk(v, name) {
+      if (Array.isArray(v)) {
+        if (!v.length) return '[]interface{}';
+        const objs = v.filter(x => x !== null && typeof x === 'object' && !Array.isArray(x));
+        if (objs.length) return '[]' + walk(Object.assign({}, ...objs), name);
+        if (v.every(x => Array.isArray(x))) return '[]' + walk(v[0], name);
+        const set = new Set(v.map(x => x === null ? 'null' : typeof x));
+        if (set.size === 1) return '[]' + (v[0] === null ? 'interface{}' : goPrim(v[0]));
+        return '[]interface{}';
+      }
+      if (v !== null && typeof v === 'object') {
+        const ks = Object.keys(v);
+        if (!ks.length) return 'map[string]interface{}';
+        const lines = [];
+        for (let i = 0; i < ks.length; i++) {
+          const k = ks[i];
+          const t = walk(v[k], k);
+          lines.push('\t' + goField(k) + ' ' + t + ' `json:"' + String(k).replace(/"/g, '\\"') + '"`');
+        }
+        const st = uniq(pascal(name));
+        blocks.push('type ' + st + ' struct {\n' + lines.join('\n') + '\n}');
+        return st;
+      }
+      return goPrim(v);
+    }
+    const rootType = walk(value, rootName || 'Root');
+    return 'package main\n\n' + blocks.join('\n\n') + '\n\n// 根类型： ' + rootType + '\n';
+  }
+
+  /* ---------- YAML generator ---------- */
+  function yamlScalar(v) {
+    if (v === null) return 'null';
+    if (typeof v === 'boolean' || typeof v === 'number') return String(v);
+    const s = String(v);
+    if (s === '' || /^[\s]|[\s]$/.test(s) || /[:#\-{}[\],&*?|>!%@`"']/.test(s) ||
+        /^-?\d+(\.\d+)?$/.test(s) || /^(true|false|null|yes|no|on|off|~)$/i.test(s) ||
+        /[\n\r\t]/.test(s)) {
+      return JSON.stringify(s);
+    }
+    return s;
+  }
+
+  function toYAML(v, indent) {
+    const pad = '  '.repeat(indent);
+    if (v === null) return 'null';
+    if (typeof v !== 'object') return yamlScalar(v);
+    if (Array.isArray(v)) {
+      if (!v.length) return '[]';
+      const lines = [];
+      for (let i = 0; i < v.length; i++) {
+        const item = v[i];
+        if (item !== null && typeof item === 'object' &&
+            ((Array.isArray(item) && item.length) || (!Array.isArray(item) && Object.keys(item).length))) {
+          const block = toYAML(item, indent + 1).split('\n');
+          const first = block[0].replace(/^\s+/, '');
+          lines.push(pad + '- ' + first);
+          for (let j = 1; j < block.length; j++) lines.push(block[j]);
+        } else if (Array.isArray(item)) {
+          lines.push(pad + '- []');
+        } else if (item !== null && typeof item === 'object') {
+          lines.push(pad + '- {}');
+        } else {
+          lines.push(pad + '- ' + yamlScalar(item));
+        }
+      }
+      return lines.join('\n');
+    }
+    const ks = Object.keys(v);
+    if (!ks.length) return '{}';
+    const lines = [];
+    for (let i = 0; i < ks.length; i++) {
+      const k = ks[i];
+      const val = v[k];
+      const key = (/^[A-Za-z_][A-Za-z0-9_]*$/.test(k) && !/^-?\d+$/.test(k)) ? k : JSON.stringify(k);
+      const isEmptyContainer = val !== null && typeof val === 'object' &&
+        (Array.isArray(val) ? val.length === 0 : Object.keys(val).length === 0);
+      if (val !== null && typeof val === 'object' && !isEmptyContainer) {
+        lines.push(pad + key + ':');
+        lines.push(toYAML(val, indent + 1));
+      } else if (val !== null && typeof val === 'object') {
+        lines.push(pad + key + ': ' + (Array.isArray(val) ? '[]' : '{}'));
+      } else {
+        lines.push(pad + key + ': ' + yamlScalar(val));
+      }
+    }
+    return lines.join('\n');
+  }
+
+  /* ---------- path list ---------- */
+  function buildPaths(value) {
+    pathIndex = [];
+    (function walk(v, path, key) {
+      let type = 'null';
+      if (v === null) type = 'null';
+      else if (Array.isArray(v)) type = 'array[' + v.length + ']';
+      else if (typeof v === 'object') type = 'object{' + Object.keys(v).length + '}';
+      else type = typeof v;
+      pathIndex.push({ path: path, key: key, type: type, preview: nodePreview(v) });
+      if (v === null || typeof v !== 'object') return;
+      if (Array.isArray(v)) {
+        for (let i = 0; i < v.length; i++) walk(v[i], joinPath(path, i, true), '[' + i + ']');
+      } else {
+        const ks = Object.keys(v);
+        for (let i = 0; i < ks.length; i++) walk(v[ks[i]], joinPath(path, ks[i], false), ks[i]);
+      }
+    })(value, '$', '$');
+    renderPaths('');
+  }
+
+  function renderPaths(filter) {
+    const f = filter.trim().toLowerCase();
+    const list = f ? pathIndex.filter(p => p.path.toLowerCase().indexOf(f) >= 0 || p.preview.toLowerCase().indexOf(f) >= 0) : pathIndex;
+    if (!list.length) { pathsOut.innerHTML = '<div class="text-slate-500 p-3">没有匹配的路径。</div>'; return; }
+    const html = list.slice(0, 800).map(p =>
+      '<div class="flex items-center gap-2 rounded px-2 py-1 hover:bg-sky-500/10 cursor-pointer" data-path="' + escapeHtml(p.path) + '">' +
+      '<span class="text-slate-400 shrink-0 text-[10px] w-24 truncate">' + escapeHtml(p.type) + '</span>' +
+      '<code class="text-sky-600 dark:text-sky-400 truncate">' + escapeHtml(p.path) + '</code>' +
+      '<span class="ml-auto text-slate-500 dark:text-slate-400 truncate max-w-[40%]">' + escapeHtml(p.preview) + '</span>' +
+      '</div>').join('');
+    pathsOut.innerHTML = html + (list.length > 800 ? '<div class="text-[11px] text-slate-500 p-2">… 仅显示前 800 条</div>' : '');
+    $$('#pathsOut [data-path]').forEach(el => {
+      el.addEventListener('click', () => { copyText(el.dataset.path, el.dataset.path); });
+    });
+  }
+
+  /* ---------- render pipeline ---------- */
+  function renderTypes() {
+    if (!currentValid) { typeOut.textContent = '// 请先输入合法 JSON'; return; }
+    let out = '';
+    try {
+      if (genMode === 'ts') out = genTS(current, 'Root');
+      else if (genMode === 'py') out = genPy(current, 'Root');
+      else out = genGo(current, 'Root');
+    } catch (e) { out = '// 生成失败：' + e.message; }
+    typeOut.textContent = out;
+  }
+
+  function renderYaml() {
+    if (!currentValid) { yamlOut.textContent = '# 请先输入合法 JSON'; return; }
+    try { yamlOut.textContent = toYAML(current, 0) + '\n'; }
+    catch (e) { yamlOut.textContent = '# 转换失败：' + e.message; }
+  }
+
+  function update() {
+    const raw = input.value;
+    if (!raw.trim()) {
+      current = undefined; currentValid = false;
+      errBox.classList.add('hidden');
+      statusPill.className = 'text-xs px-2.5 py-1 rounded-full border border-slate-400/40 bg-slate-400/10 text-slate-500';
+      statusPill.textContent = '● 等待输入';
+      $('#stChars').textContent = '0'; $('#stBytes').textContent = '0 B';
+      $('#stDepth').textContent = '0'; $('#stKeys').textContent = '0';
+      $('#stNodes').textContent = '0'; $('#stRoot').textContent = '—';
+      buildTree(undefined); typeOut.textContent = ''; yamlOut.textContent = ''; pathsOut.innerHTML = '';
+      return;
+    }
+    const res = parseJSON(raw);
+    if (!res.ok) {
+      currentValid = false; current = undefined;
+      showError(raw, res);
+      statusPill.className = 'text-xs px-2.5 py-1 rounded-full border border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400';
+      statusPill.textContent = '✕ JSON 无效';
+      buildTree(undefined); typeOut.textContent = ''; yamlOut.textContent = ''; pathsOut.innerHTML = '';
+      return;
+    }
+    errBox.classList.add('hidden');
+    currentValid = true; current = res.value;
+    statusPill.className = 'text-xs px-2.5 py-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400';
+    statusPill.textContent = '✓ JSON 有效';
+    computeStats(current, raw);
+    buildTree(current);
+    buildPaths(current);
+    renderTypes();
+    renderYaml();
+  }
+
+  /* ---------- actions ---------- */
+  function getIndent() {
+    const v = $('#indentSel').value;
+    return v === 'tab' ? '\t' : parseInt(v, 10);
+  }
+
+  function pretty() {
+    const res = parseJSON(input.value);
+    if (!res.ok) { showError(input.value, res); toast('❌ 无法美化：JSON 无效'); return; }
+    input.value = JSON.stringify(res.value, null, getIndent());
+    update(); toast('✨ 已美化');
+  }
+
+  function minify() {
+    const res = parseJSON(input.value);
+    if (!res.ok) { showError(input.value, res); toast('❌ 无法压缩：JSON 无效'); return; }
+    input.value = JSON.stringify(res.value);
+    update(); toast('🗜 已压缩');
+  }
+
+  function sortKeysDeep(v) {
+    if (Array.isArray(v)) return v.map(sortKeysDeep);
+    if (v && typeof v === 'object') {
+      const out = {};
+      Object.keys(v).sort().forEach(k => { out[k] = sortKeysDeep(v[k]); });
+      return out;
+    }
+    return v;
+  }
+
+  /* ---------- events ---------- */
+  let timer = null;
+  input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(update, 180); });
+
+  // drag & drop
+  ['dragenter', 'dragover'].forEach(ev => input.addEventListener(ev, (e) => { e.preventDefault(); input.classList.add('ring-2', 'ring-sky-500/60'); }));
+  ['dragleave', 'drop'].forEach(ev => input.addEventListener(ev, (e) => { e.preventDefault(); input.classList.remove('ring-2', 'ring-sky-500/60'); }));
+  input.addEventListener('drop', (e) => {
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) readFile(f);
+  });
+
+  function readFile(f) {
+    const fr = new FileReader();
+    fr.onload = () => { input.value = String(fr.result); update(); toast('📂 已载入 ' + f.name); };
+    fr.readAsText(f);
+  }
+
+  $('#sampleBtn').addEventListener('click', () => {
+    input.value = JSON.stringify(SAMPLE, null, 2);
+    update(); toast('🎁 已填入示例数据');
+  });
+  $('#fileBtn').addEventListener('click', () => $('#fileInput').click());
+  $('#fileInput').addEventListener('change', (e) => { const f = e.target.files[0]; if (f) readFile(f); e.target.value = ''; });
+  $('#clearBtn').addEventListener('click', () => { input.value = ''; update(); input.focus(); });
+  $('#prettyBtn').addEventListener('click', pretty);
+  $('#minifyBtn').addEventListener('click', minify);
+  $('#sortBtn').addEventListener('click', () => {
+    const res = parseJSON(input.value);
+    if (!res.ok) { showError(input.value, res); return; }
+    input.value = JSON.stringify(sortKeysDeep(res.value), null, getIndent());
+    update(); toast('🔤 已按键名排序');
+  });
+  $('#copyRawBtn').addEventListener('click', () => copyText(input.value, '原文'));
+  $('#indentSel').addEventListener('change', () => { if (currentValid) pretty(); });
+
+  $('#expandAllBtn').addEventListener('click', () => {
+    $$('#tree .children').forEach(el => el.classList.remove('hidden'));
+    $$('#tree .tree-row > span:first-child').forEach(el => { if (el.textContent === '▸') el.textContent = '▾'; });
+  });
+  $('#collapseAllBtn').addEventListener('click', () => {
+    $$('#tree .children').forEach(el => el.classList.add('hidden'));
+    $$('#tree .tree-row > span:first-child').forEach(el => { if (el.textContent === '▾') el.textContent = '▸'; });
+  });
+  $('#treeFilter').addEventListener('input', (e) => {
+    const f = e.target.value.trim().toLowerCase();
+    $$('#tree .tree-row').forEach(row => {
+      const hit = !f || (row.dataset.text || '').indexOf(f) >= 0;
+      row.style.display = hit ? '' : 'none';
+    });
+    if (f) {
+      $$('#tree .children').forEach(el => el.classList.remove('hidden'));
+    }
+  });
+
+  // tabs
+  $$('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('.tab-btn').forEach(b => {
+        b.classList.remove('border-sky-500', 'text-sky-600', 'dark:text-sky-400', 'font-semibold');
+        b.classList.add('border-transparent', 'text-slate-500');
+      });
+      btn.classList.add('border-sky-500', 'text-sky-600', 'dark:text-sky-400', 'font-semibold');
+      btn.classList.remove('border-transparent', 'text-slate-500');
+      $$('.tab-panel').forEach(p => p.classList.add('hidden'));
+      $('#tab-' + btn.dataset.tab).classList.remove('hidden');
+    });
+  });
+
+  $$('.gen-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      genMode = btn.dataset.gen;
+      $$('.gen-btn').forEach(b => {
+        b.className = 'gen-btn text-xs px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800';
+      });
+      btn.className = 'gen-btn text-xs px-3 py-1.5 rounded-lg bg-sky-500 text-white font-semibold';
+      renderTypes();
+    });
+  });
+
+  $('#copyTypeBtn').addEventListener('click', () => copyText(typeOut.textContent, '代码'));
+  $('#dlTypeBtn').addEventListener('click', () => {
+    const ext = genMode === 'ts' ? 'ts' : genMode === 'py' ? 'py' : 'go';
+    download('schema.' + ext, typeOut.textContent);
+  });
+  $('#copyYamlBtn').addEventListener('click', () => copyText(yamlOut.textContent, 'YAML'));
+  $('#dlYamlBtn').addEventListener('click', () => download('data.yaml', yamlOut.textContent));
+  $('#pathFilter').addEventListener('input', (e) => renderPaths(e.target.value));
+  $('#copyPathsBtn').addEventListener('click', () => copyText(pathIndex.map(p => p.path).join('\n'), '全部路径'));
+
+  // theme
+  const root = document.documentElement;
+  function setTheme(dark) {
+    if (dark) root.classList.add('dark'); else root.classList.remove('dark');
+    try { localStorage.setItem('json-knife-theme', dark ? 'dark' : 'light'); } catch (e) {}
+  }
+  let saved = null;
+  try { saved = localStorage.getItem('json-knife-theme'); } catch (e) {}
+  setTheme(saved ? saved === 'dark' : true);
+  $('#themeBtn').addEventListener('click', () => setTheme(!root.classList.contains('dark')));
+
+  // keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') { e.preventDefault(); pretty(); }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'm') { e.preventDefault(); minify(); }
+  });
+
+  // init with sample
+  input.value = JSON.stringify(SAMPLE, null, 2);
+  update();
+})();
+</script>
+</body>
+</html>
