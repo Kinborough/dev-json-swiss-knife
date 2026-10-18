@@ -14,7 +14,7 @@
 
 ### 一、设计参考案例（致谢 / Acknowledgements）
 
-本项目是 [daily-tools-factory](https://github.com/Kinborough)「高星开源工具对标复刻计划」的第 1 个作品，交互与功能设计参考了以下优秀开源项目：
+本项目是 [daily-tools-factory](https://github.com/Kinborough)交互与功能设计参考了以下优秀开源项目：
 
 | 参考项目 | 借鉴点 |
 | --- | --- |
